@@ -1,0 +1,391 @@
+<!DOCTYPE html>
+<html lang="fr">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+
+    <title>DownGxt</title>
+
+    <meta
+        name="description"
+        content="DownGxt - Télécharge tes vidéos simplement."
+    >
+
+    <link rel="stylesheet" href="style.css">
+</head>
+
+<body>
+
+    <div class="page">
+
+        <!-- HEADER -->
+
+        <header class="header">
+
+            <a href="/" class="logo">
+                <span class="logo-icon">↓</span>
+                <span>DownGxt</span>
+            </a>
+
+            <div class="status">
+                <span class="status-dot"></span>
+                <span>LOCAL</span>
+            </div>
+
+        </header>
+
+
+        <!-- HERO -->
+
+        <main>
+
+            <section class="hero">
+
+                <div class="hero-label">
+                    YOUTUBE DOWNLOADER
+                </div>
+
+                <h1>
+                    Télécharge.<br>
+                    <span>Simplement.</span>
+                </h1>
+
+                <p>
+                    Colle le lien d'une vidéo YouTube,
+                    analyse-la et choisis ton format.
+                </p>
+
+            </section>
+
+
+            <!-- SEARCH -->
+
+            <section class="search-section">
+
+                <div class="search-box">
+
+                    <span class="link-icon">↗</span>
+
+                    <input
+                        id="urlInput"
+                        type="text"
+                        placeholder="Colle ton lien YouTube ici..."
+                        autocomplete="off"
+                        spellcheck="false"
+                    >
+
+                    <button
+                        id="clearBtn"
+                        class="clear-btn"
+                        type="button"
+                        aria-label="Effacer"
+                    >
+                        ×
+                    </button>
+
+                </div>
+
+                <button
+                    id="analyzeBtn"
+                    class="primary-btn"
+                    type="button"
+                >
+                    <span id="analyzeText">Analyser</span>
+                    <span class="arrow">→</span>
+                </button>
+
+            </section>
+
+
+            <!-- ERROR -->
+
+            <div
+                id="error"
+                class="error"
+            ></div>
+
+
+            <!-- ANALYSIS -->
+
+            <section
+                id="loading"
+                class="loading hidden"
+            >
+
+                <div class="loader-line"></div>
+
+                <div class="loading-content">
+
+                    <span class="loading-dot"></span>
+
+                    <span id="loadingText">
+                        Analyse de la vidéo...
+                    </span>
+
+                </div>
+
+            </section>
+
+
+            <!-- RESULT -->
+
+            <section
+                id="result"
+                class="result hidden"
+            >
+
+                <div class="video-card">
+
+                    <div class="thumbnail-container">
+
+                        <img
+                            id="thumbnail"
+                            src=""
+                            alt="Miniature vidéo"
+                        >
+
+                        <div
+                            id="duration"
+                            class="duration"
+                        >
+                            00:00
+                        </div>
+
+                    </div>
+
+
+                    <div class="video-information">
+
+                        <div class="video-source">
+                            YOUTUBE
+                        </div>
+
+                        <h2 id="title">
+                            Titre de la vidéo
+                        </h2>
+
+                        <p id="uploader">
+                            Chaîne
+                        </p>
+
+                        <div class="video-divider"></div>
+
+                        <div class="video-meta">
+
+                            <span>
+                                Vidéo détectée
+                            </span>
+
+                            <span class="meta-separator">
+                                /
+                            </span>
+
+                            <span>
+                                Prête au téléchargement
+                            </span>
+
+                        </div>
+
+                    </div>
+
+                </div>
+
+
+                <!-- DOWNLOAD -->
+
+                <div class="download-card">
+
+                    <div class="download-header">
+
+                        <div>
+                            <h3>Format</h3>
+                            <p>Choisis ce que tu souhaites récupérer.</p>
+                        </div>
+
+                    </div>
+
+
+                    <div class="format-grid">
+
+                        <button
+                            class="format-option active"
+                            data-format="mp4"
+                            type="button"
+                        >
+
+                            <div class="format-icon">
+                                MP4
+                            </div>
+
+                            <div class="format-info">
+
+                                <strong>Vidéo</strong>
+
+                                <span>
+                                    Vidéo + audio
+                                </span>
+
+                            </div>
+
+                            <div class="check">
+                                ✓
+                            </div>
+
+                        </button>
+
+
+                        <button
+                            class="format-option"
+                            data-format="mp3"
+                            type="button"
+                        >
+
+                            <div class="format-icon">
+                                MP3
+                            </div>
+
+                            <div class="format-info">
+
+                                <strong>Audio</strong>
+
+                                <span>
+                                    Audio uniquement
+                                </span>
+
+                            </div>
+
+                            <div class="check">
+                                ✓
+                            </div>
+
+                        </button>
+
+                    </div>
+
+
+                    <div
+                        id="qualityContainer"
+                        class="quality-container"
+                    >
+
+                        <label for="quality">
+                            QUALITÉ VIDÉO
+                        </label>
+
+                        <select id="quality">
+
+                            <option value="best">
+                                Meilleure qualité disponible
+                            </option>
+
+                            <option value="1080">
+                                1080p
+                            </option>
+
+                            <option value="720">
+                                720p
+                            </option>
+
+                            <option value="480">
+                                480p
+                            </option>
+
+                        </select>
+
+                    </div>
+
+
+                    <button
+                        id="downloadBtn"
+                        class="download-btn"
+                        type="button"
+                    >
+
+                        <span class="download-icon">
+                            ↓
+                        </span>
+
+                        <span id="downloadText">
+                            Télécharger
+                        </span>
+
+                    </button>
+
+                </div>
+
+            </section>
+
+
+            <!-- STEPS -->
+
+            <section class="steps">
+
+                <div class="step">
+
+                    <span class="step-number">
+                        01
+                    </span>
+
+                    <div>
+                        <strong>Colle le lien</strong>
+                        <p>Une URL YouTube suffit.</p>
+                    </div>
+
+                </div>
+
+
+                <div class="step">
+
+                    <span class="step-number">
+                        02
+                    </span>
+
+                    <div>
+                        <strong>Analyse</strong>
+                        <p>Les informations sont récupérées.</p>
+                    </div>
+
+                </div>
+
+
+                <div class="step">
+
+                    <span class="step-number">
+                        03
+                    </span>
+
+                    <div>
+                        <strong>Télécharge</strong>
+                        <p>Choisis ton format.</p>
+                    </div>
+
+                </div>
+
+            </section>
+
+        </main>
+
+
+        <!-- FOOTER -->
+
+        <footer>
+
+            <div>
+                DownGxt
+            </div>
+
+            <div class="footer-right">
+                Local downloader <span>/</span> v1.0
+            </div>
+
+        </footer>
+
+    </div>
+
+
+    <script src="script.js"></script>
+
+</body>
+
+</html>
