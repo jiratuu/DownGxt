@@ -9,7 +9,7 @@
 
     <meta
         name="description"
-        content="DownGxt - Télécharge tes vidéos simplement."
+        content="DownGxt - Télécharge tes vidéos simplement et facilement ."
     >
 
     <link rel="stylesheet" href="style.css">
