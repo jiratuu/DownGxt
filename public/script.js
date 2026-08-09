@@ -34,6 +34,15 @@ const uploader =
 const duration =
     document.getElementById("duration");
 
+const sourceLabel =
+    document.getElementById("sourceLabel");
+
+const platformBadge =
+    document.getElementById("platformBadge");
+
+const tiktokNote =
+    document.getElementById("tiktokNote");
+
 const downloadBtn =
     document.getElementById("downloadBtn");
 
@@ -49,7 +58,129 @@ const qualityContainer =
 
 let currentUrl = "";
 
+let currentPlatform = null;
+
+let currentInfo = null;
+
 let selectedFormat = "mp4";
+
+
+/* ==========================================
+   DETECTION PLATEFORME
+========================================== */
+
+function detectPlatform(url) {
+
+    if (!url) {
+        return null;
+    }
+
+    try {
+
+        const host =
+            new URL(url)
+                .hostname
+                .replace(
+                    /^(www|m|vm)\./,
+                    ""
+                );
+
+
+        if (
+            host === "youtube.com" ||
+            host === "youtu.be" ||
+            host.endsWith(".youtube.com")
+        ) {
+
+            return "youtube";
+
+        }
+
+
+        if (
+            host === "tiktok.com" ||
+            host.endsWith(".tiktok.com")
+        ) {
+
+            return "tiktok";
+
+        }
+
+    } catch (error) {
+
+        /* URL invalide, on retombe
+           sur une vérification simple. */
+
+    }
+
+
+    if (
+        url.includes("youtube.com") ||
+        url.includes("youtu.be")
+    ) {
+
+        return "youtube";
+
+    }
+
+
+    if (
+        url.includes("tiktok.com")
+    ) {
+
+        return "tiktok";
+
+    }
+
+
+    return null;
+
+}
+
+
+function updatePlatformBadge() {
+
+    const platform =
+        detectPlatform(
+            urlInput.value.trim()
+        );
+
+
+    platformBadge.classList.remove(
+        "youtube",
+        "tiktok"
+    );
+
+
+    if (!platform) {
+
+        platformBadge.classList.add(
+            "hidden"
+        );
+
+        platformBadge.textContent = "";
+
+        return;
+
+    }
+
+
+    platformBadge.textContent =
+        platform === "youtube"
+            ? "YouTube"
+            : "TikTok";
+
+
+    platformBadge.classList.add(
+        platform
+    );
+
+
+    platformBadge.classList.remove(
+        "hidden"
+    );
+
+}
 
 
 /* ==========================================
@@ -144,23 +275,14 @@ async function analyzeVideo() {
     );
 
 
-    if (!url) {
+    const platform =
+        detectPlatform(url);
+
+
+    if (!platform) {
 
         showError(
-            "Colle un lien YouTube pour commencer."
-        );
-
-        return;
-    }
-
-
-    if (
-        !url.includes("youtube.com") &&
-        !url.includes("youtu.be")
-    ) {
-
-        showError(
-            "Ce lien ne semble pas être un lien YouTube."
+            "Colle un lien YouTube ou TikTok pour commencer."
         );
 
         return;
@@ -168,6 +290,10 @@ async function analyzeVideo() {
 
 
     currentUrl = url;
+
+    currentPlatform = platform;
+
+    currentInfo = null;
 
 
     analyzeBtn.disabled = true;
@@ -199,7 +325,8 @@ async function analyzeVideo() {
                     },
 
                     body: JSON.stringify({
-                        url: url
+                        url: url,
+                        platform: platform
                     })
                 }
             );
@@ -241,6 +368,9 @@ async function analyzeVideo() {
             "Vidéo trouvée.";
 
 
+        currentInfo = data;
+
+
         thumbnail.src =
             data.thumbnail || "";
 
@@ -259,6 +389,30 @@ async function analyzeVideo() {
             formatDuration(
                 data.duration
             );
+
+
+        sourceLabel.textContent =
+            platform === "youtube"
+                ? "YOUTUBE"
+                : "TIKTOK";
+
+
+        sourceLabel.classList.toggle(
+            "tiktok",
+            platform === "tiktok"
+        );
+
+
+        tiktokNote.classList.toggle(
+            "hidden",
+            platform !== "tiktok"
+        );
+
+
+        downloadText.textContent =
+            platform === "tiktok"
+                ? "Télécharger (sans filigrane)"
+                : "Télécharger";
 
 
         await new Promise(
@@ -352,6 +506,15 @@ urlInput.addEventListener(
 );
 
 
+/* Detection en direct :
+   fonctionne aussi au collage. */
+
+urlInput.addEventListener(
+    "input",
+    updatePlatformBadge
+);
+
+
 /* ==========================================
    EFFACER
 ========================================== */
@@ -364,6 +527,10 @@ clearBtn.addEventListener(
 
         currentUrl = "";
 
+        currentPlatform = null;
+
+        currentInfo = null;
+
         result.classList.add(
             "hidden"
         );
@@ -373,6 +540,21 @@ clearBtn.addEventListener(
         );
 
         hideError();
+
+        updatePlatformBadge();
+
+        sourceLabel.textContent = "—";
+
+        sourceLabel.classList.remove(
+            "tiktok"
+        );
+
+        tiktokNote.classList.add(
+            "hidden"
+        );
+
+        downloadText.textContent =
+            "Télécharger";
 
         urlInput.focus();
 
@@ -493,6 +675,12 @@ async function downloadVideo() {
         );
 
 
+        params.set(
+            "platform",
+            currentPlatform || ""
+        );
+
+
         const response =
             await fetch(
                 "/api/download?" +
@@ -538,10 +726,24 @@ async function downloadVideo() {
             blobUrl;
 
 
+        const baseName =
+            currentInfo &&
+            currentInfo.title
+                ? currentInfo.title
+                      .replace(
+                          /[\\/:*?"<>|]/g,
+                          "_"
+                      )
+                      .slice(0, 80)
+                : currentPlatform === "tiktok"
+                      ? "DownGxt-TikTok"
+                      : "DownGxt-Video";
+
+
         link.download =
             selectedFormat === "mp3"
-                ? "DownGxt-Audio.mp3"
-                : "DownGxt-Video.mp4";
+                ? baseName + ".mp3"
+                : baseName + ".mp4";
 
 
         document.body.appendChild(
@@ -575,7 +777,9 @@ async function downloadVideo() {
             function() {
 
                 downloadText.textContent =
-                    "Télécharger";
+                    currentPlatform === "tiktok"
+                        ? "Télécharger (sans filigrane)"
+                        : "Télécharger";
 
             },
             1800
@@ -610,6 +814,8 @@ async function downloadVideo() {
 /* ==========================================
    INITIALISATION
 ========================================== */
+
+updatePlatformBadge();
 
 console.log(
     "[DownGxt] Interface chargée."

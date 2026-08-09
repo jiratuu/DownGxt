@@ -9,7 +9,7 @@
 
     <meta
         name="description"
-        content="DownGxt - Télécharge tes vidéos simplement et facilement ."
+        content="DownGxt - Télécharge tes vidéos YouTube et TikTok simplement."
     >
 
     <link rel="stylesheet" href="style.css">
@@ -43,7 +43,7 @@
             <section class="hero">
 
                 <div class="hero-label">
-                    YOUTUBE DOWNLOADER
+                    YOUTUBE · TIKTOK DOWNLOADER
                 </div>
 
                 <h1>
@@ -52,7 +52,7 @@
                 </h1>
 
                 <p>
-                    Colle le lien d'une vidéo YouTube,
+                    Colle le lien d'une vidéo YouTube ou TikTok,
                     analyse-la et choisis ton format.
                 </p>
 
@@ -70,10 +70,15 @@
                     <input
                         id="urlInput"
                         type="text"
-                        placeholder="Colle ton lien YouTube ici..."
+                        placeholder="Colle ton lien YouTube ou TikTok ici..."
                         autocomplete="off"
                         spellcheck="false"
                     >
+
+                    <span
+                        id="platformBadge"
+                        class="platform-badge hidden"
+                    ></span>
 
                     <button
                         id="clearBtn"
@@ -157,8 +162,11 @@
 
                     <div class="video-information">
 
-                        <div class="video-source">
-                            YOUTUBE
+                        <div
+                            id="sourceLabel"
+                            class="video-source"
+                        >
+                            —
                         </div>
 
                         <h2 id="title">
@@ -202,6 +210,22 @@
                             <h3>Format</h3>
                             <p>Choisis ce que tu souhaites récupérer.</p>
                         </div>
+
+                    </div>
+
+
+                    <div
+                        id="tiktokNote"
+                        class="tiktok-note hidden"
+                    >
+
+                        <span class="tiktok-note-check">
+                            ✓
+                        </span>
+
+                        <span>
+                            Filigrane TikTok supprimé automatiquement.
+                        </span>
 
                     </div>
 
@@ -329,7 +353,7 @@
 
                     <div>
                         <strong>Colle le lien</strong>
-                        <p>Une URL YouTube suffit.</p>
+                        <p>Une URL YouTube ou TikTok suffit.</p>
                     </div>
 
                 </div>
@@ -376,7 +400,7 @@
             </div>
 
             <div class="footer-right">
-                Local downloader <span>/</span> v1.0
+                Local downloader <span>/</span> v1.1
             </div>
 
         </footer>
