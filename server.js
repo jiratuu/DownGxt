@@ -5,47 +5,60 @@ const { spawn, spawnSync } = require("child_process");
 
 const app = express();
 
-const PORT = 3000;
+const PORT = process.env.PORT || 3000;
 
 const ROOT = __dirname;
 const PUBLIC_DIR = path.join(ROOT, "public");
 const BIN_DIR = path.join(ROOT, "bin");
 const DOWNLOAD_DIR = path.join(ROOT, "downloads");
 
+
 // =====================================================
 // DOSSIERS
 // =====================================================
 
-if (!fs.existsSync(BIN_DIR)) {
-    fs.mkdirSync(BIN_DIR, { recursive: true });
-}
+fs.mkdirSync(BIN_DIR, {
+    recursive: true
+});
 
-if (!fs.existsSync(DOWNLOAD_DIR)) {
-    fs.mkdirSync(DOWNLOAD_DIR, { recursive: true });
-}
+fs.mkdirSync(DOWNLOAD_DIR, {
+    recursive: true
+});
+
 
 // =====================================================
 // EXPRESS
 // =====================================================
 
-app.use(express.json());
+app.use(express.json({
+    limit: "1mb"
+}));
+
 app.use(express.static(PUBLIC_DIR));
+
 
 // =====================================================
 // OUTILS
 // =====================================================
 
-function fileExists(file) {
+function exists(file) {
+
     try {
-        return fs.existsSync(file) && fs.statSync(file).isFile();
+
+        return fs.existsSync(file) &&
+               fs.statSync(file).isFile();
+
     } catch {
+
         return false;
+
     }
+
 }
 
 
 // =====================================================
-// TROUVER UN PROGRAMME DANS LE PATH
+// TROUVER PROGRAMME DANS LE PATH
 // =====================================================
 
 function findInPath(program) {
@@ -57,16 +70,20 @@ function findInPath(program) {
 
     try {
 
-        const result = spawnSync(
-            command,
-            [program],
-            {
-                encoding: "utf8",
-                windowsHide: true
-            }
-        );
+        const result =
+            spawnSync(
+                command,
+                [program],
+                {
+                    encoding: "utf8",
+                    windowsHide: true
+                }
+            );
 
-        if (result.status === 0 && result.stdout) {
+        if (
+            result.status === 0 &&
+            result.stdout
+        ) {
 
             const lines =
                 result.stdout
@@ -75,46 +92,18 @@ function findInPath(program) {
                     .map(x => x.trim())
                     .filter(Boolean);
 
-            if (lines.length > 0) {
+            if (lines.length) {
+
                 return lines[0];
+
             }
+
         }
 
     } catch {}
 
     return null;
-}
 
-
-// =====================================================
-// TROUVER FFMPEG
-// =====================================================
-
-function findFFmpeg() {
-
-    const extension =
-        process.platform === "win32"
-            ? ".exe"
-            : "";
-
-    const localFile =
-        path.join(
-            BIN_DIR,
-            "ffmpeg" + extension
-        );
-
-    if (fileExists(localFile)) {
-        return localFile;
-    }
-
-    const pathFile =
-        findInPath("ffmpeg");
-
-    if (pathFile) {
-        return pathFile;
-    }
-
-    return null;
 }
 
 
@@ -124,61 +113,76 @@ function findFFmpeg() {
 
 function findYTDLP() {
 
-    const extension =
+    const exe =
         process.platform === "win32"
-            ? ".exe"
-            : "";
+            ? "yt-dlp.exe"
+            : "yt-dlp";
+
 
     // -------------------------------------------------
-    // 1. BIN LOCAL
+    // BIN LOCAL
     // -------------------------------------------------
 
-    const localFile =
+    const local =
         path.join(
             BIN_DIR,
-            "yt-dlp" + extension
+            exe
         );
 
-    if (fileExists(localFile)) {
+
+    if (exists(local)) {
 
         console.log(
-            "[YTDLP] Trouvé en local :",
-            localFile
+            "[YTDLP] Local :",
+            local
         );
 
         return {
-            command: localFile,
+
+            command: local,
+
             prefixArgs: []
+
         };
+
     }
 
 
     // -------------------------------------------------
-    // 2. PATH
+    // PATH
     // -------------------------------------------------
 
-    const pathFile =
-        findInPath("yt-dlp");
+    const system =
+        findInPath(
+            "yt-dlp"
+        );
 
-    if (pathFile) {
+
+    if (system) {
 
         console.log(
-            "[YTDLP] Trouvé dans le PATH :",
-            pathFile
+            "[YTDLP] PATH :",
+            system
         );
 
         return {
-            command: pathFile,
+
+            command: system,
+
             prefixArgs: []
+
         };
+
     }
 
 
     // -------------------------------------------------
-    // 3. PY -M YT_DLP
+    // WINDOWS PYTHON
     // -------------------------------------------------
 
-    if (process.platform === "win32") {
+    if (
+        process.platform === "win32"
+    ) {
 
         try {
 
@@ -196,89 +200,78 @@ function findYTDLP() {
                     }
                 );
 
+
             if (
                 result.status === 0 &&
-                result.stdout &&
-                result.stdout.trim()
+                result.stdout
             ) {
 
                 console.log(
-                    "[YTDLP] Trouvé via : py -m yt_dlp"
+                    "[YTDLP] Python : py -m yt_dlp"
                 );
 
                 return {
+
                     command: "py",
+
                     prefixArgs: [
                         "-m",
                         "yt_dlp"
                     ]
+
                 };
+
             }
 
         } catch {}
+
     }
 
 
-    // -------------------------------------------------
-    // 4. PYTHON -M YT_DLP
-    // -------------------------------------------------
-
-    try {
-
-        const result =
-            spawnSync(
-                "python",
-                [
-                    "-m",
-                    "yt_dlp",
-                    "--version"
-                ],
-                {
-                    encoding: "utf8",
-                    windowsHide: true
-                }
-            );
-
-        if (
-            result.status === 0 &&
-            result.stdout &&
-            result.stdout.trim()
-        ) {
-
-            console.log(
-                "[YTDLP] Trouvé via : python -m yt_dlp"
-            );
-
-            return {
-                command: "python",
-                prefixArgs: [
-                    "-m",
-                    "yt_dlp"
-                ]
-            };
-        }
-
-    } catch {}
-
-
-    // -------------------------------------------------
-    // RIEN TROUVÉ
-    // -------------------------------------------------
-
     return null;
+
 }
 
 
 // =====================================================
-// DÉTECTION
+// TROUVER FFMPEG
 // =====================================================
+
+function findFFmpeg() {
+
+    const exe =
+        process.platform === "win32"
+            ? "ffmpeg.exe"
+            : "ffmpeg";
+
+
+    const local =
+        path.join(
+            BIN_DIR,
+            exe
+        );
+
+
+    if (exists(local)) {
+
+        return local;
+
+    }
+
+
+    return findInPath(
+        "ffmpeg"
+    );
+
+}
+
 
 const YTDLP = findYTDLP();
 const FFMPEG = findFFmpeg();
 
 
 // =====================================================
-// INFORMATIONS SERVEUR
+// INFORMATIONS
 // =====================================================
 
 console.log("");
@@ -288,162 +281,136 @@ console.log("======================================");
 console.log("");
 
 console.log(
-    "Système :",
+    "Platform :",
     process.platform
 );
 
 console.log(
-    "Node.js :",
+    "Node     :",
     process.version
 );
 
-console.log("");
-
-if (YTDLP) {
-
-    console.log(
-        "yt-dlp :",
-        YTDLP.command,
-        YTDLP.prefixArgs.length
-            ? "(" + YTDLP.prefixArgs.join(" ") + ")"
-            : ""
-    );
-
-} else {
-
-    console.log(
-        "yt-dlp : INTROUVABLE"
-    );
-
-}
-
-
-if (FFMPEG) {
-
-    console.log(
-        "ffmpeg :",
-        FFMPEG
-    );
-
-} else {
-
-    console.log(
-        "ffmpeg : INTROUVABLE"
-    );
-
-}
-
-console.log("");
+console.log(
+    "yt-dlp   :",
+    YTDLP
+        ? YTDLP.command
+        : "INTROUVABLE"
+);
 
 console.log(
-    "Serveur : http://localhost:" + PORT
+    "ffmpeg   :",
+    FFMPEG
+        ? FFMPEG
+        : "INTROUVABLE"
 );
 
 console.log("");
 
 
 // =====================================================
-// EXÉCUTER UNE COMMANDE
+// EXÉCUTER COMMANDE
 // =====================================================
 
-function runCommand(command, args) {
+function runCommand(
+    command,
+    args
+) {
 
-    return new Promise(function(resolve, reject) {
+    return new Promise(
+        function(resolve, reject) {
 
-        let child;
+            let child;
 
-        try {
+            try {
 
-            child = spawn(
-                command,
-                args,
-                {
-                    windowsHide: true,
-                    shell: false
-                }
-            );
-
-        } catch (error) {
-
-            reject(error);
-            return;
-
-        }
-
-
-        let stdout = "";
-        let stderr = "";
-
-
-        child.stdout.on(
-            "data",
-            function(data) {
-
-                stdout += data.toString();
-
-            }
-        );
-
-
-        child.stderr.on(
-            "data",
-            function(data) {
-
-                stderr += data.toString();
-
-            }
-        );
-
-
-        child.on(
-            "error",
-            function(error) {
-
-                if (error.code === "ENOENT") {
-
-                    reject(
-                        new Error(
-                            command +
-                            " est introuvable. " +
-                            "Vérifie son installation."
-                        )
+                child =
+                    spawn(
+                        command,
+                        args,
+                        {
+                            windowsHide: true,
+                            shell: false,
+                            env: {
+                                ...process.env
+                            }
+                        }
                     );
 
-                    return;
-
-                }
+            } catch (error) {
 
                 reject(error);
 
+                return;
+
             }
-        );
 
 
-        child.on(
-            "close",
-            function(code) {
+            let stdout = "";
+            let stderr = "";
 
-                if (code === 0) {
 
-                    resolve(stdout);
+            child.stdout.on(
+                "data",
+                data => {
 
-                } else {
+                    stdout +=
+                        data.toString();
+
+                }
+            );
+
+
+            child.stderr.on(
+                "data",
+                data => {
+
+                    stderr +=
+                        data.toString();
+
+                }
+            );
+
+
+            child.on(
+                "error",
+                error => {
+
+                    reject(error);
+
+                }
+            );
+
+
+            child.on(
+                "close",
+                code => {
+
+                    if (
+                        code === 0
+                    ) {
+
+                        resolve(
+                            stdout
+                        );
+
+                        return;
+
+                    }
+
 
                     reject(
                         new Error(
                             stderr.trim() ||
                             stdout.trim() ||
-                            command +
-                            " a rencontré une erreur."
+                            `${command} a échoué.`
                         )
                     );
 
                 }
+            );
 
-            }
-        );
-
-    });
+        }
+    );
 
 }
 
@@ -458,12 +425,12 @@ function runYTDLP(args) {
 
         return Promise.reject(
             new Error(
-                "yt-dlp est introuvable. " +
-                "Installe yt-dlp ou place yt-dlp.exe dans le dossier bin."
+                "yt-dlp est introuvable."
             )
         );
 
     }
+
 
     return runCommand(
         YTDLP.command,
@@ -472,6 +439,7 @@ function runYTDLP(args) {
             ...args
         ]
     );
+
 }
 
 
@@ -486,9 +454,9 @@ app.get(
         try {
 
             const version =
-                await runYTDLP(
-                    ["--version"]
-                );
+                await runYTDLP([
+                    "--version"
+                ]);
 
 
             res.json({
@@ -501,7 +469,10 @@ app.get(
                 ytDlp: true,
 
                 ffmpeg:
-                    !!FFMPEG
+                    !!FFMPEG,
+
+                platform:
+                    process.platform
 
             });
 
@@ -535,34 +506,42 @@ app.post(
     "/api/info",
     async function(req, res) {
 
+        const url =
+            typeof req.body.url === "string"
+                ? req.body.url.trim()
+                : "";
+
+
+        if (!url) {
+
+            return res.status(400).json({
+
+                error:
+                    "URL manquante."
+
+            });
+
+        }
+
+
         try {
 
-            const url =
-                req.body.url;
-
-
-            if (!url) {
-
-                return res.status(400).json({
-
-                    error:
-                        "URL manquante."
-
-                });
-
-            }
-
-
             const output =
-                await runYTDLP(
-                    [
-                        "--dump-single-json",
-                        "--no-playlist",
-                        "--no-warnings",
-                        "--skip-download",
-                        url
-                    ]
-                );
+                await runYTDLP([
+
+                    "--dump-single-json",
+
+                    "--no-playlist",
+
+                    "--no-warnings",
+
+                    "--skip-download",
+
+                    "--no-check-certificates",
+
+                    url
+
+                ]);
 
 
             const data =
@@ -572,7 +551,7 @@ app.post(
             res.json({
 
                 id:
-                    data.id,
+                    data.id || "",
 
                 title:
                     data.title ||
@@ -580,21 +559,21 @@ app.post(
 
                 uploader:
                     data.uploader ||
+                    data.channel ||
                     "Chaîne inconnue",
 
                 duration:
-                    data.duration ||
-                    0,
+                    Number(data.duration) || 0,
 
                 thumbnail:
-                    data.thumbnail ||
-                    "",
+                    data.thumbnail || "",
 
                 url:
                     data.webpage_url ||
                     url
 
             });
+
 
         } catch (error) {
 
@@ -604,10 +583,28 @@ app.post(
             );
 
 
+            let message =
+                error.message;
+
+
+            if (
+                message.includes(
+                    "Sign in to confirm"
+                )
+            ) {
+
+                message =
+                    "YouTube bloque cette requête depuis le serveur Render. " +
+                    "Cette vidéo nécessite une authentification/cookies " +
+                    "ou YouTube bloque actuellement l'adresse IP du serveur.";
+
+            }
+
+
             res.status(500).json({
 
                 error:
-                    error.message
+                    message
 
             });
 
@@ -626,15 +623,21 @@ app.get(
     async function(req, res) {
 
         const url =
-            req.query.url;
+            typeof req.query.url === "string"
+                ? req.query.url.trim()
+                : "";
+
 
         const format =
-            req.query.format ||
-            "mp4";
+            req.query.format === "mp3"
+                ? "mp3"
+                : "mp4";
+
 
         const quality =
-            req.query.quality ||
-            "best";
+            typeof req.query.quality === "string"
+                ? req.query.quality
+                : "best";
 
 
         if (!url) {
@@ -646,28 +649,33 @@ app.get(
         }
 
 
+        const allowedQualities = [
+            "best",
+            "1080",
+            "720",
+            "480"
+        ];
+
+
         if (
-            format !== "mp4" &&
-            format !== "mp3"
+            !allowedQualities.includes(
+                quality
+            )
         ) {
 
             return res.status(400).send(
-                "Format invalide."
+                "Qualité invalide."
             );
 
         }
 
 
-        const randomPart =
-            Math.random()
-                .toString(36)
-                .substring(2, 8);
-
-
         const id =
             Date.now() +
             "_" +
-            randomPart;
+            Math.random()
+                .toString(36)
+                .slice(2, 8);
 
 
         const output =
@@ -685,6 +693,14 @@ app.get(
 
             "--no-warnings",
 
+            "--no-check-certificates",
+
+            "--retries",
+            "3",
+
+            "--fragment-retries",
+            "3",
+
             "-o",
             output
 
@@ -695,14 +711,29 @@ app.get(
         // MP3
         // =================================================
 
-        if (format === "mp3") {
+        if (
+            format === "mp3"
+        ) {
+
+            if (!FFMPEG) {
+
+                return res.status(500).send(
+                    "FFmpeg est introuvable sur le serveur."
+                );
+
+            }
+
 
             args.push(
+
                 "-x",
+
                 "--audio-format",
                 "mp3",
+
                 "--audio-quality",
                 "0"
+
             );
 
         }
@@ -717,21 +748,27 @@ app.get(
             let videoFormat;
 
 
-            if (quality === "1080") {
+            if (
+                quality === "1080"
+            ) {
 
                 videoFormat =
                     "bestvideo[height<=1080]+bestaudio/best[height<=1080]";
 
             }
 
-            else if (quality === "720") {
+            else if (
+                quality === "720"
+            ) {
 
                 videoFormat =
                     "bestvideo[height<=720]+bestaudio/best[height<=720]";
 
             }
 
-            else if (quality === "480") {
+            else if (
+                quality === "480"
+            ) {
 
                 videoFormat =
                     "bestvideo[height<=480]+bestaudio/best[height<=480]";
@@ -747,18 +784,17 @@ app.get(
 
 
             args.push(
+
                 "-f",
                 videoFormat,
+
                 "--merge-output-format",
                 "mp4"
+
             );
 
         }
 
-
-        // =================================================
-        // URL
-        // =================================================
 
         args.push(url);
 
@@ -767,18 +803,18 @@ app.get(
         console.log("======================================");
         console.log("DOWNLOAD");
         console.log("======================================");
-        console.log("URL      :", url);
-        console.log("FORMAT   :", format);
-        console.log("QUALITY  :", quality);
-        console.log("YTDLP    :", YTDLP ? YTDLP.command : "NONE");
-        console.log("FFMPEG   :", FFMPEG || "NONE");
+        console.log("URL     :", url);
+        console.log("FORMAT  :", format);
+        console.log("QUALITY :", quality);
         console.log("======================================");
         console.log("");
 
 
         try {
 
-            await runYTDLP(args);
+            await runYTDLP(
+                args
+            );
 
 
             const files =
@@ -789,20 +825,17 @@ app.get(
 
             const filename =
                 files.find(
-                    function(file) {
-
-                        return file.indexOf(
+                    file =>
+                        file.startsWith(
                             id + "."
-                        ) === 0;
-
-                    }
+                        )
                 );
 
 
             if (!filename) {
 
                 throw new Error(
-                    "Le fichier téléchargé est introuvable."
+                    "Le téléchargement est terminé mais le fichier est introuvable."
                 );
 
             }
@@ -818,7 +851,7 @@ app.get(
             res.download(
                 filePath,
                 filename,
-                function(error) {
+                error => {
 
                     if (error) {
 
@@ -831,7 +864,7 @@ app.get(
 
 
                     setTimeout(
-                        function() {
+                        () => {
 
                             try {
 
@@ -847,17 +880,10 @@ app.get(
 
                                 }
 
-                            } catch (cleanupError) {
-
-                                console.error(
-                                    "Erreur nettoyage :",
-                                    cleanupError.message
-                                );
-
-                            }
+                            } catch {}
 
                         },
-                        5000
+                        10000
                     );
 
                 }
@@ -866,18 +892,36 @@ app.get(
 
         } catch (error) {
 
-            console.error("");
             console.error(
                 "[DOWNLOAD ERROR]",
                 error.message
             );
-            console.error("");
 
 
-            if (!res.headersSent) {
+            let message =
+                error.message;
+
+
+            if (
+                message.includes(
+                    "Sign in to confirm"
+                )
+            ) {
+
+                message =
+                    "YouTube bloque actuellement les requêtes provenant de Render. " +
+                    "yt-dlp fonctionne, mais YouTube demande une authentification " +
+                    "ou bloque l'IP du serveur.";
+
+            }
+
+
+            if (
+                !res.headersSent
+            ) {
 
                 res.status(500).send(
-                    error.message
+                    message
                 );
 
             }
@@ -889,7 +933,7 @@ app.get(
 
 
 // =====================================================
-// PAGE PRINCIPALE
+// PAGE
 // =====================================================
 
 app.use(
@@ -912,12 +956,15 @@ app.use(
 
 app.listen(
     PORT,
+    "0.0.0.0",
     function() {
 
+        console.log("");
         console.log(
-            "Serveur démarré sur http://localhost:" +
+            "Serveur démarré sur le port " +
             PORT
         );
+        console.log("");
 
     }
 );
