@@ -1,9 +1,10 @@
 {
-  "name": "youtube-downloader",
+  "name": "downgxt",
   "version": "1.0.0",
-  "description": "YouTube video downloader",
+  "description": "DownGxt - YouTube and TikTok downloader",
   "main": "server.js",
   "scripts": {
+    "build": "node setup.js",
     "start": "node server.js"
   },
   "dependencies": {
