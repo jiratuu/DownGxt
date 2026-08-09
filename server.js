@@ -1,7 +1,7 @@
 const express = require("express");
 const path = require("path");
 const fs = require("fs");
-const { spawn } = require("child_process");
+const { spawn, spawnSync } = require("child_process");
 
 const app = express();
 
@@ -11,7 +11,6 @@ const ROOT = __dirname;
 const PUBLIC_DIR = path.join(ROOT, "public");
 const BIN_DIR = path.join(ROOT, "bin");
 const DOWNLOAD_DIR = path.join(ROOT, "downloads");
-
 
 // =====================================================
 // DOSSIERS
@@ -25,7 +24,6 @@ if (!fs.existsSync(DOWNLOAD_DIR)) {
     fs.mkdirSync(DOWNLOAD_DIR, { recursive: true });
 }
 
-
 // =====================================================
 // EXPRESS
 // =====================================================
@@ -33,68 +31,326 @@ if (!fs.existsSync(DOWNLOAD_DIR)) {
 app.use(express.json());
 app.use(express.static(PUBLIC_DIR));
 
-
 // =====================================================
-// TROUVER UN PROGRAMME
+// OUTILS
 // =====================================================
 
-function findProgram(name) {
-
-    var extension = "";
-
-    if (process.platform === "win32") {
-        extension = ".exe";
+function fileExists(file) {
+    try {
+        return fs.existsSync(file) && fs.statSync(file).isFile();
+    } catch {
+        return false;
     }
-
-    var localFile =
-        path.join(
-            BIN_DIR,
-            name + extension
-        );
-
-    if (fs.existsSync(localFile)) {
-        return localFile;
-    }
-
-    return name;
 }
 
 
-var YTDLP = findProgram("yt-dlp");
-var FFMPEG = findProgram("ffmpeg");
+// =====================================================
+// TROUVER UN PROGRAMME DANS LE PATH
+// =====================================================
+
+function findInPath(program) {
+
+    const command =
+        process.platform === "win32"
+            ? "where.exe"
+            : "which";
+
+    try {
+
+        const result = spawnSync(
+            command,
+            [program],
+            {
+                encoding: "utf8",
+                windowsHide: true
+            }
+        );
+
+        if (result.status === 0 && result.stdout) {
+
+            const lines =
+                result.stdout
+                    .trim()
+                    .split(/\r?\n/)
+                    .map(x => x.trim())
+                    .filter(Boolean);
+
+            if (lines.length > 0) {
+                return lines[0];
+            }
+        }
+
+    } catch {}
+
+    return null;
+}
 
 
 // =====================================================
-// INFORMATIONS
+// TROUVER FFMPEG
+// =====================================================
+
+function findFFmpeg() {
+
+    const extension =
+        process.platform === "win32"
+            ? ".exe"
+            : "";
+
+    const localFile =
+        path.join(
+            BIN_DIR,
+            "ffmpeg" + extension
+        );
+
+    if (fileExists(localFile)) {
+        return localFile;
+    }
+
+    const pathFile =
+        findInPath("ffmpeg");
+
+    if (pathFile) {
+        return pathFile;
+    }
+
+    return null;
+}
+
+
+// =====================================================
+// TROUVER YT-DLP
+// =====================================================
+
+function findYTDLP() {
+
+    const extension =
+        process.platform === "win32"
+            ? ".exe"
+            : "";
+
+    // -------------------------------------------------
+    // 1. BIN LOCAL
+    // -------------------------------------------------
+
+    const localFile =
+        path.join(
+            BIN_DIR,
+            "yt-dlp" + extension
+        );
+
+    if (fileExists(localFile)) {
+
+        console.log(
+            "[YTDLP] Trouvé en local :",
+            localFile
+        );
+
+        return {
+            command: localFile,
+            prefixArgs: []
+        };
+    }
+
+
+    // -------------------------------------------------
+    // 2. PATH
+    // -------------------------------------------------
+
+    const pathFile =
+        findInPath("yt-dlp");
+
+    if (pathFile) {
+
+        console.log(
+            "[YTDLP] Trouvé dans le PATH :",
+            pathFile
+        );
+
+        return {
+            command: pathFile,
+            prefixArgs: []
+        };
+    }
+
+
+    // -------------------------------------------------
+    // 3. PY -M YT_DLP
+    // -------------------------------------------------
+
+    if (process.platform === "win32") {
+
+        try {
+
+            const result =
+                spawnSync(
+                    "py",
+                    [
+                        "-m",
+                        "yt_dlp",
+                        "--version"
+                    ],
+                    {
+                        encoding: "utf8",
+                        windowsHide: true
+                    }
+                );
+
+            if (
+                result.status === 0 &&
+                result.stdout &&
+                result.stdout.trim()
+            ) {
+
+                console.log(
+                    "[YTDLP] Trouvé via : py -m yt_dlp"
+                );
+
+                return {
+                    command: "py",
+                    prefixArgs: [
+                        "-m",
+                        "yt_dlp"
+                    ]
+                };
+            }
+
+        } catch {}
+    }
+
+
+    // -------------------------------------------------
+    // 4. PYTHON -M YT_DLP
+    // -------------------------------------------------
+
+    try {
+
+        const result =
+            spawnSync(
+                "python",
+                [
+                    "-m",
+                    "yt_dlp",
+                    "--version"
+                ],
+                {
+                    encoding: "utf8",
+                    windowsHide: true
+                }
+            );
+
+        if (
+            result.status === 0 &&
+            result.stdout &&
+            result.stdout.trim()
+        ) {
+
+            console.log(
+                "[YTDLP] Trouvé via : python -m yt_dlp"
+            );
+
+            return {
+                command: "python",
+                prefixArgs: [
+                    "-m",
+                    "yt_dlp"
+                ]
+            };
+        }
+
+    } catch {}
+
+
+    // -------------------------------------------------
+    // RIEN TROUVÉ
+    // -------------------------------------------------
+
+    return null;
+}
+
+
+// =====================================================
+// DÉTECTION
+// =====================================================
+
+const YTDLP = findYTDLP();
+const FFMPEG = findFFmpeg();
+
+
+// =====================================================
+// INFORMATIONS SERVEUR
 // =====================================================
 
 console.log("");
 console.log("======================================");
-console.log("              DOWNTUBE");
+console.log("              DOWNGXT");
 console.log("======================================");
 console.log("");
+
+console.log(
+    "Système :",
+    process.platform
+);
+
+console.log(
+    "Node.js :",
+    process.version
+);
+
+console.log("");
+
+if (YTDLP) {
+
+    console.log(
+        "yt-dlp :",
+        YTDLP.command,
+        YTDLP.prefixArgs.length
+            ? "(" + YTDLP.prefixArgs.join(" ") + ")"
+            : ""
+    );
+
+} else {
+
+    console.log(
+        "yt-dlp : INTROUVABLE"
+    );
+
+}
+
+
+if (FFMPEG) {
+
+    console.log(
+        "ffmpeg :",
+        FFMPEG
+    );
+
+} else {
+
+    console.log(
+        "ffmpeg : INTROUVABLE"
+    );
+
+}
+
+console.log("");
+
 console.log(
     "Serveur : http://localhost:" + PORT
 );
-console.log("");
-console.log(
-    "yt-dlp : " + YTDLP
-);
-console.log(
-    "ffmpeg : " + FFMPEG
-);
+
 console.log("");
 
 
 // =====================================================
-// EXECUTER UNE COMMANDE
+// EXÉCUTER UNE COMMANDE
 // =====================================================
 
 function runCommand(command, args) {
 
     return new Promise(function(resolve, reject) {
 
-        var child;
+        let child;
 
         try {
 
@@ -102,7 +358,8 @@ function runCommand(command, args) {
                 command,
                 args,
                 {
-                    windowsHide: true
+                    windowsHide: true,
+                    shell: false
                 }
             );
 
@@ -114,8 +371,8 @@ function runCommand(command, args) {
         }
 
 
-        var stdout = "";
-        var stderr = "";
+        let stdout = "";
+        let stderr = "";
 
 
         child.stdout.on(
@@ -148,7 +405,7 @@ function runCommand(command, args) {
                         new Error(
                             command +
                             " est introuvable. " +
-                            "Vérifie qu'il est installé."
+                            "Vérifie son installation."
                         )
                     );
 
@@ -174,7 +431,8 @@ function runCommand(command, args) {
 
                     reject(
                         new Error(
-                            stderr ||
+                            stderr.trim() ||
+                            stdout.trim() ||
                             command +
                             " a rencontré une erreur."
                         )
@@ -191,6 +449,33 @@ function runCommand(command, args) {
 
 
 // =====================================================
+// EXÉCUTER YT-DLP
+// =====================================================
+
+function runYTDLP(args) {
+
+    if (!YTDLP) {
+
+        return Promise.reject(
+            new Error(
+                "yt-dlp est introuvable. " +
+                "Installe yt-dlp ou place yt-dlp.exe dans le dossier bin."
+            )
+        );
+
+    }
+
+    return runCommand(
+        YTDLP.command,
+        [
+            ...YTDLP.prefixArgs,
+            ...args
+        ]
+    );
+}
+
+
+// =====================================================
 // STATUS
 // =====================================================
 
@@ -200,9 +485,8 @@ app.get(
 
         try {
 
-            var version =
-                await runCommand(
-                    YTDLP,
+            const version =
+                await runYTDLP(
                     ["--version"]
                 );
 
@@ -212,16 +496,25 @@ app.get(
                 online: true,
 
                 version:
-                    version.trim()
+                    version.trim(),
+
+                ytDlp: true,
+
+                ffmpeg:
+                    !!FFMPEG
 
             });
-
 
         } catch (error) {
 
             res.status(500).json({
 
                 online: false,
+
+                ytDlp: false,
+
+                ffmpeg:
+                    !!FFMPEG,
 
                 error:
                     error.message
@@ -235,7 +528,7 @@ app.get(
 
 
 // =====================================================
-// INFORMATIONS VIDEO
+// INFORMATIONS VIDÉO
 // =====================================================
 
 app.post(
@@ -244,7 +537,7 @@ app.post(
 
         try {
 
-            var url =
+            const url =
                 req.body.url;
 
 
@@ -260,9 +553,8 @@ app.post(
             }
 
 
-            var output =
-                await runCommand(
-                    YTDLP,
+            const output =
+                await runYTDLP(
                     [
                         "--dump-single-json",
                         "--no-playlist",
@@ -273,7 +565,7 @@ app.post(
                 );
 
 
-            var data =
+            const data =
                 JSON.parse(output);
 
 
@@ -304,7 +596,6 @@ app.post(
 
             });
 
-
         } catch (error) {
 
             console.error(
@@ -327,21 +618,21 @@ app.post(
 
 
 // =====================================================
-// TELECHARGEMENT
+// TÉLÉCHARGEMENT
 // =====================================================
 
 app.get(
     "/api/download",
     async function(req, res) {
 
-        var url =
+        const url =
             req.query.url;
 
-        var format =
+        const format =
             req.query.format ||
             "mp4";
 
-        var quality =
+        const quality =
             req.query.quality ||
             "best";
 
@@ -367,26 +658,26 @@ app.get(
         }
 
 
-        var randomPart =
+        const randomPart =
             Math.random()
                 .toString(36)
                 .substring(2, 8);
 
 
-        var id =
+        const id =
             Date.now() +
             "_" +
             randomPart;
 
 
-        var output =
+        const output =
             path.join(
                 DOWNLOAD_DIR,
                 id + ".%(ext)s"
             );
 
 
-        var args = [
+        const args = [
 
             "--no-playlist",
 
@@ -423,7 +714,7 @@ app.get(
 
         else {
 
-            var videoFormat;
+            let videoFormat;
 
 
             if (quality === "1080") {
@@ -465,6 +756,10 @@ app.get(
         }
 
 
+        // =================================================
+        // URL
+        // =================================================
+
         args.push(url);
 
 
@@ -472,27 +767,27 @@ app.get(
         console.log("======================================");
         console.log("DOWNLOAD");
         console.log("======================================");
-        console.log("URL :", url);
-        console.log("FORMAT :", format);
-        console.log("QUALITY :", quality);
+        console.log("URL      :", url);
+        console.log("FORMAT   :", format);
+        console.log("QUALITY  :", quality);
+        console.log("YTDLP    :", YTDLP ? YTDLP.command : "NONE");
+        console.log("FFMPEG   :", FFMPEG || "NONE");
+        console.log("======================================");
         console.log("");
 
 
         try {
 
-            await runCommand(
-                YTDLP,
-                args
-            );
+            await runYTDLP(args);
 
 
-            var files =
+            const files =
                 fs.readdirSync(
                     DOWNLOAD_DIR
                 );
 
 
-            var filename =
+            const filename =
                 files.find(
                     function(file) {
 
@@ -513,7 +808,7 @@ app.get(
             }
 
 
-            var filePath =
+            const filePath =
                 path.join(
                     DOWNLOAD_DIR,
                     filename
@@ -579,9 +874,13 @@ app.get(
             console.error("");
 
 
-            res.status(500).send(
-                error.message
-            );
+            if (!res.headersSent) {
+
+                res.status(500).send(
+                    error.message
+                );
+
+            }
 
         }
 
@@ -616,7 +915,7 @@ app.listen(
     function() {
 
         console.log(
-            "Serveur : http://localhost:" +
+            "Serveur démarré sur http://localhost:" +
             PORT
         );
 
